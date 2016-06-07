@@ -1,8 +1,10 @@
 defmodule LDAPEx.Config do
-  @modeuledoc """
+  @moduledoc """
   This module handles reading in the default config from the environment while
   also combining those with any passed-in overrides.
   """
+
+  #require Logger
 
   @doc """
   Returns the environment default configuration map

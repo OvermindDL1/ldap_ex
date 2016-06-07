@@ -17,12 +17,13 @@ If [available in Hex](https://hex.pm/docs/publish) (not yet), the package can be
      ```
 
   2. If you want defaults (highly recommended) for any unspecified value, add
-     this to your configuration:
+     something like this to your configuration:
 
      ```elixir
      config :ldap_ex, :defaults, %{
          server: System.get_env("LDAP_SERVER"),
          port: elem(Integer.parse(System.get_env("LDAP_PORT")), 0),
+         ssl: System.get_env("LDAP_SSL") == "true"
          username: System.get_env("LDAP_USERNAME"),
          password: System.get_env("LDAP_PASSWORD"),
          timeout: 5

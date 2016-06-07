@@ -21,12 +21,21 @@ use Mix.Config
 #     config :logger, level: :info
 #
 
+config :logger,
+  backends: [:console],
+  handle_otp_reports: true,
+  #handle_sasl_reports: true,
+  compile_time_purge_level: :debug
+  #compile_time_purge_level: :warn
+
+
 config :ldap_ex, :defaults, %{
     server: System.get_env("LDAP_SERVER"),
     port: elem(Integer.parse(System.get_env("LDAP_PORT")), 0),
+    ssl: System.get_env("LDAP_SSL") == "true",
     username: System.get_env("LDAP_USERNAME"),
     password: System.get_env("LDAP_PASSWORD"),
-    timeout: 5
+    timeout: 5000
   }
 
 # It is also possible to import configuration files, relative to this
@@ -35,4 +44,4 @@ config :ldap_ex, :defaults, %{
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
-# import_config "#{Mix.env}.exs"
+import_config "#{Mix.env}.exs"
