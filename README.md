@@ -27,7 +27,7 @@ installed by:
          ssl: System.get_env("LDAP_SSL") == "true"
          username: System.get_env("LDAP_USERNAME"),
          password: System.get_env("LDAP_PASSWORD"),
-         timeout: 5
+         timeout: 5000
        }
      ```
 
