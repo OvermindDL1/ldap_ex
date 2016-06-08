@@ -274,7 +274,15 @@ defmodule LDAPEx.Client do
   #
   ####
   defp bump_id(%{id: id} = state) do
-    %{state | id: id+1}
+    %{state | id: bump_id_safe(id+1)}
+  end
+
+
+  defp bump_id_safe(id) when is_integer(id) and id>=0 and id<=2147483647 do
+    id+1
+  end
+  defp bump_id_safe(id) when is_integer(id) and id>2147483647 do
+    0 # Is it safe to wrap around?  Will this ever happen in reality?
   end
 
 
@@ -421,7 +429,7 @@ defmodule LDAPEx.Client do
   #   end
   # end
   # Hmm, the below is a more complex matcher, but it is so much shorter and kind
-  # or more readable...
+  # of more readable...
   # defp check_reply(%{id: id} = state,
   #   {:ok, {:LDAPMessage, id,
   #     {op, {:LDAPResult, :success, _matchedDN, _errorMessage, _referral}}, _controls}=msg},
@@ -520,8 +528,8 @@ defmodule LDAPEx.Client do
   defp v_bool(false) ,do: false
   defp v_bool(bool)  ,do: raise LDAPException, type: :invalid_bool, message: "not Boolean: #{bool}"
 
-  defp v_integer_nonneg(i, _type) when is_integer(i) and i>=0 ,do: i
-  defp v_integer_nonneg(i, type) ,do: raise LDAPException, type: :invalid_nonneg_integer, message: "#{type} not positive integer: #{i}"
+  defp v_integer_nonneg(i, _type) when is_integer(i) and i>=0 and i<=2147483647 ,do: i
+  defp v_integer_nonneg(i, type) ,do: raise LDAPException, type: :invalid_nonneg_integer, message: "#{type} not positive integer between 0 and 2147483647: #{i}"
 
   defp v_attributes(attrs) when is_list(attrs) do
     attrs
