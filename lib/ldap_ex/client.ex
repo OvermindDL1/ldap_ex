@@ -17,6 +17,11 @@ defmodule LDAPEx.Client do
   defstruct fd: nil, using_tls: false, id: 0, version: @ldap_version, config: %{}
 
 
+  defmodule LDAPException do
+    defexception type: :error, message: "<UNKNOWN LDAP EXCEPTION"
+  end
+
+
   ####
   #
   # Public Interface
@@ -67,24 +72,22 @@ defmodule LDAPEx.Client do
 
   iex> LDAPEx.Client.setup_search(baseObject: "ou=People,o=example.com,o=cp", filter: {:present, "dn"} )
   {:SearchRequest, "ou=People,o=example.com,o=cp", :wholeSubtree,
-    :derefAlways, :undefined, :undefined, :undefined, {:present, "dn"},
-    :undefined}
+    :derefAlways, 0, :undefined, false, {:present, "dn"}, []}
 
   ```
   """
   def setup_search(searchRequestArgs \\ []) do
-    default = LDAPEx.ELDAPv3."SearchRequest"(scope: v_scope(:wholeSubtree), derefAliases: v_deref(:derefAlways))
+    default = LDAPEx.ELDAPv3."SearchRequest"(
+      baseObject: :BASE_INVALID,
+      scope: v_scope(:wholeSubtree),
+      derefAliases: v_deref(:derefAlways),
+      sizeLimit: v_integer_nonneg(0, "sizeLimit"),
+      timeLimit: :undefined,
+      typesOnly: v_bool(false),
+      filter: :FILTER_INVALID,
+      attributes: v_attributes([])
+      )
     req = parse_into_searchRequest(searchRequestArgs, default)
-    #req = LDAPEx.ELDAPv3."SearchRequest"(default, searchRequestArgs)
-    #Req = #'SearchRequest'{baseObject = A#eldap_search.base,
-    # scope = v_scope(A#eldap_search.scope),
-    # derefAliases = v_deref(A#eldap_search.deref),
-    # sizeLimit = 0, % no size limit
-    # timeLimit = v_timeout(A#eldap_search.timeout),
-    # typesOnly = v_bool(A#eldap_search.types_only),
-    # filter = v_filter(A#eldap_search.filter),
-    # attributes = v_attributes(A#eldap_search.attributes)
-    #}
   end
 
 
@@ -95,9 +98,13 @@ defmodule LDAPEx.Client do
   ```elixir
 
   iex> {:ok, ldap} = LDAPEx.Client.start_link()
-  iex> req = LDAPEx.Client.setup_search(baseObject: System.get_env("TEST_LDAP_DN"), filter: {:present, "dn"} )
-  iex> LDAPEx.Client.search(ldap, req)
-  :ok
+  iex> req = LDAPEx.Client.setup_search(baseObject: System.get_env("TEST_LDAP_DN"), filter: {:present, "objectClass"} )
+  iex> {:ok, {res, _references}} = LDAPEx.Client.search(ldap, req) # _refs are just an empty [] in every server tested so far...
+  iex> [r] = res # Assuming only one record is returned
+  iex> r.objectName === System.get_env("TEST_LDAP_DN")
+  true
+  iex> map_size(r.attributes) >= 4
+  true
   iex> LDAPEx.Client.close(ldap)
   :ok
 
@@ -114,21 +121,22 @@ defmodule LDAPEx.Client do
   #
   ####
   # Don't call this one with login_at_connect: false yet, no way to log in yet if not now...
-  def init(%{server: server, port: port, ssl: ssl, timeout: timeout, login_at_connect: false} = config) do
-    {:ok, connection} = try_connect(config)
-    state = %LDAPEx.Client{fd: connection, using_tls: ssl, config: config}
-    {:ok, state}
-  end
+  # def init(%{server: server, port: port, ssl: ssl, timeout: timeout, login_at_connect: false} = config) do
+  #   {:ok, connection} = try_connect(config)
+  #   state = %LDAPEx.Client{fd: connection, using_tls: ssl, config: config}
+  #   {:ok, state}
+  # end
 
   def init(%{server: server, port: port, ssl: ssl, username: username, password: password, timeout: timeout} = config) do
-    {:ok, connection} = try_connect(config)
-    state = %LDAPEx.Client{fd: connection, using_tls: ssl, config: config}
-    {:ok, _newstate} = do_simple_bind(state, username, password, :asn1_NOVALUE)
+    {:ok, fd} = try_connect(config)
+    state = %LDAPEx.Client{fd: fd, using_tls: ssl, config: config}
+    {:ok, newState} = do_simple_bind(state, username, password, :asn1_NOVALUE)
+    {:ok, put_in(newState.config[:password], nil)} # Sanitize password
   end
 
 
   def handle_call({:search, searchRecord, controls}, _from, state) do
-    {res, newState} = collect_search_responses(bump_id(state), searchRecord, controls)
+    {res, newState} = do_search(bump_id(state), searchRecord, controls)
     {:reply, res, newState}
   end
 
@@ -148,10 +156,43 @@ defmodule LDAPEx.Client do
   end
 
 
+  defp ldap_closed_p(%{fd: fd, using_tls: true} = state, emsg) do
+    ## Check if the SSL socket seems to be alive or not
+    try do
+      :ssl.sockname(fd)
+    rescue
+      _ -> {:error, :ldap_closed}
+    catch
+      _ -> {:error, :ldap_closed}
+    else
+      {:ok, _res} -> {:error, emsg}
+      {:error, _res} ->
+        :ssl.close(fd)
+        {:error, :ldap_closed}
+      _ -> {:error, :ldap_closed}
+    end
+  end
+
+  defp ldap_closed_p(%{fd: fd, using_tls: false} = state, emsg) do
+    ## Non-SSL socket
+    try do
+      :inet.port(fd)
+    rescue
+      _ -> {:error, :ldap_closed}
+    catch
+      _ -> {:error, :ldap_closed}
+    else
+      {:error, _res} -> {:error, :ldap_closed}
+      _ -> {:error, emsg}
+    end
+  end
+
+
   defp try_connect(%{server: server, port: port, ssl: false, timeout: timeout}) do
     tcpOpts = [:binary, packet: :asn1, active: false]
     :gen_tcp.connect(to_char_list(server), port, tcpOpts, timeout)
   end
+
   defp try_connect(%{server: server, port: port, ssl: true, timeout: timeout}) do
     tcpOpts = [:binary, packet: :asn1, active: false]
     tlsOpts = []
@@ -199,9 +240,9 @@ defmodule LDAPEx.Client do
 
 
   defp send_the_LDAPMessage(state, ldapMessage) do
-    {:ok, bytes} = :ELDAPv3.encode(:"LDAPMessage", ldapMessage)
+    {:ok, bytes} = LDAPEx.ELDAPv3.encode(:LDAPMessage, ldapMessage)
     case do_send(state, bytes) do
-      {:error, reason} -> raise {:gen_tcp_error, reason}
+      {:error, reason} -> raise LDAPException, type: :gen_tcp_error, message: reason
       response -> response
     end
   end
@@ -228,11 +269,11 @@ defmodule LDAPEx.Client do
   defp recv_response(state) do
     case do_recv(state, 0) do
       {:ok, packet} ->
-        case :"ELDAPv3".decode(:"LDAPMessage", packet) do
+        case LDAPEx.ELDAPv3.decode(:LDAPMessage, packet) do
           {:ok, resp} -> {:ok, resp}
-          error -> raise error
+          error -> raise LDAPException, type: :decode_error, message: error
         end
-      {:error, reason} -> raise {:gen_tcp_error, reason}
+      {:error, reason} -> raise LDAPException, type: :gen_tcp_error, message: reason
     end
   end
 
@@ -255,15 +296,15 @@ defmodule LDAPEx.Client do
   #   end
   # end
   defp check_reply(%{id: id} = state,
-    {:ok, {:"LDAPMessage", id,
-      {op, {:"LDAPResult", :success, _matchedDN, _errorMessage, _referral}}, _controls}=msg},
+    {:ok, {:LDAPMessage, id,
+      {op, {:LDAPResult, :success, _matchedDN, _errorMessage, _referral}}, _controls}=msg},
       op) do
         {:ok, state}
   end
 
   defp check_reply(%{id: id} = state,
-    {:ok, {:"LDAPMessage", id,
-      {op, {:"LDAPResult", :referral, _matchedDN, _errorMessage, referral}}, _controls}=msg},
+    {:ok, {:LDAPMessage, id,
+      {op, {:LDAPResult, :referral, _matchedDN, _errorMessage, referral}}, _controls}=msg},
       op) do
         {{:ok, {:referral, referral}}, state}
   end
@@ -276,11 +317,6 @@ defmodule LDAPEx.Client do
   ### Bind requests
 
   defp do_simple_bind(state, dn, password, controls) do
-    do_the_simple_bind(state, dn, password, controls)
-  end
-
-
-  defp do_the_simple_bind(state, dn, password, controls) do
     exec_simple_bind(bump_id(state), dn, password, controls)
   end
 
@@ -328,10 +364,10 @@ defmodule LDAPEx.Client do
     parse_into_searchRequest(rest, LDAPEx.ELDAPv3."SearchRequest"(searchRequest, derefAliases: v_deref(derefAliases)))
   end
   defp parse_into_searchRequest([{:sizeLimit, sizeLimit}|rest], searchRequest) do
-    parse_into_searchRequest(rest, LDAPEx.ELDAPv3."SearchRequest"(searchRequest, sizeLimit: sizeLimit))
+    parse_into_searchRequest(rest, LDAPEx.ELDAPv3."SearchRequest"(searchRequest, sizeLimit: v_integer_nonneg(sizeLimit, "sizeLimit")))
   end
   defp parse_into_searchRequest([{:timeLimit, timeLimit}|rest], searchRequest) do
-    parse_into_searchRequest(rest, LDAPEx.ELDAPv3."SearchRequest"(searchRequest, timeLimit: v_timeout(timeLimit)))
+    parse_into_searchRequest(rest, LDAPEx.ELDAPv3."SearchRequest"(searchRequest, timeLimit: v_integer_nonneg(timeLimit, "timeLimit")))
   end
   defp parse_into_searchRequest([{:typesOnly, typesOnly}|rest], searchRequest) do
     parse_into_searchRequest(rest, LDAPEx.ELDAPv3."SearchRequest"(searchRequest, typesOnly: v_bool(typesOnly)))
@@ -348,24 +384,25 @@ defmodule LDAPEx.Client do
   defp v_deref(:derefInSearching)    ,do: :derefInSearching
   defp v_deref(:derefFindingBaseObj) ,do: :derefFindingBaseObj
   defp v_deref(:derefAlways)         ,do: :derefAlways
+  defp v_deref(deref)                ,do: raise LDAPException, type: :invalid_deref, message: "unknown deref: #{deref}"
 
   defp v_scope(:baseObject)   ,do: :baseObject
   defp v_scope(:singleLevel)  ,do: :singleLevel
   defp v_scope(:wholeSubtree) ,do: :wholeSubtree
-  defp v_scope(scope)         ,do: raise {:error, "unknown scope: #{scope}"}
+  defp v_scope(scope)         ,do: raise LDAPException, type: :invalid_scope, message: "unknown scope: #{scope}"
 
   defp v_bool(true)  ,do: true
   defp v_bool(false) ,do: false
-  defp v_bool(bool)  ,do: raise {:error, "not Boolean: #{bool}"}
+  defp v_bool(bool)  ,do: raise LDAPException, type: :invalid_bool, message: "not Boolean: #{bool}"
 
-  defp v_timeout(i) when is_integer(i) and i>=0 ,do: i
-  defp v_timeout(i) ,do: raise {:error, "timeout not positive integer: #{i}"}
+  defp v_integer_nonneg(i, _type) when is_integer(i) and i>=0 ,do: i
+  defp v_integer_nonneg(i, type) ,do: raise LDAPException, type: :invalid_nonneg_integer, message: "#{type} not positive integer: #{i}"
 
   defp v_attributes(attrs) when is_list(attrs) do
     attrs
     |> Enum.map(fn
       a when is_binary(a) or is_list(a) -> a
-      a -> raise {:error, "attribute not a string: #{a}"}
+      a -> raise LDAPException, type: :invalid_attribute, message: "attribute not a string: #{a}"
     end)
   end
 
@@ -379,26 +416,56 @@ defmodule LDAPEx.Client do
   defp v_filter({:present, a})         ,do: {:present, a}
   defp v_filter({:substrings, s})      when is_record(s, :SubstringFilter)       ,do: {:substrings, s}
   defp v_filter({:extensibleMatch, s}) when is_record(s, :MatchingRuleAssertion) ,do: {:extensibleMatch, s}
-  defp v_filter(filter)                ,do: raise {:error, "unknown filter: #{filter}"}
+  defp v_filter(filter)                ,do: raise LDAPException, type: :invalid_filter, message: "unknown filter: #{filter}"
 
 
   defp do_search(state, searchRecord, controls) do
+    searchRecord = add_search_timeout(state, searchRecord)
     res = try do
       collect_search_responses(state, searchRecord, controls)
     rescue
-      err -> err
+      e in LDAPException -> {ldap_closed_p(state, e)}
     catch
-      err -> err
-    end
-    case res do
-      {:error, emsg}               -> {ldap_closed_p(state, emsg), state};
-      {:EXIT, err}                 -> {ldap_closed_p(state, err), state};
-      {{:ok, val}, newState}        -> {{ok, val}, newState};
-      {:ok, res, ref, newState}      -> {{ok, polish(res, ref)}, newState};
-      {{:error, reason}, newState} -> {{error, reason}, newState};
+      {:error, emsg}               -> {ldap_closed_p(state, emsg), state}
+      {:EXIT, err}                 -> {ldap_closed_p(state, err), state}
+      otherwise                    -> {ldap_closed_p(state, otherwise), state}
+    else
+      {:ok, res, ref, newState}    -> {{:ok, polish(res, ref)}, newState}
+      {{:ok, val}, newState}       -> {{:ok, val}, newState}
+      {{:error, reason}, newState} -> {{:error, reason}, newState}
       otherwise                    -> {ldap_closed_p(state, otherwise), state}
     end
   end
+
+
+  defp add_search_timeout(%{config: %{timeout: timeout}} = state, searchRecord) do
+    LDAPEx.ELDAPv3."SearchRequest"(timeLimit: timeLimit) = searchRecord
+    case timeLimit do
+      :undefined -> LDAPEx.ELDAPv3."SearchRequest"(searchRecord, timeLimit: round(timeout/1000))
+      _ -> searchRecord
+    end
+  end
+
+
+  ###
+  ### Polish the returned search result
+  ###
+
+  defp polish(res, ref) do
+    r = polish_result(res)
+    ### No special treatment of referrals at the moment.
+    #eldap_search_result{entries = R,
+  	#	 referrals = Ref}.
+    {r, ref}
+  end
+
+  defp polish_result([h|t]) when is_record(h, :SearchResultEntry) do
+    LDAPEx.ELDAPv3."SearchResultEntry"(objectName: objectName, attributes: attributes) = h
+    f = fn {_, a, v} -> {a, v} end
+    attrs = Enum.map(attributes, f) |> Enum.into(%{})
+    [%{objectName: objectName, attributes: attrs} | polish_result(t)]
+  end
+  defp polish_result([]), do: []
 
 
   ### The returned answers cames in one packet per entry
@@ -428,12 +495,12 @@ defmodule LDAPEx.Client do
       #   # This is entirely handled improperly, however does any LDAP server send these at all?
       #   resp = recv_response(state)
       #   collect_search_responses(state, resp, acc, [r|ref])
-      otherwise -> raise {:error, otherwise}
+      otherwise -> raise LDAPException, type: :search_failure, message: otherwise
     end
   end
 
   defp collect_search_responses(_state, msg, _acc, _ref) do
-    raise {:error, msg}
+    raise LDAPException, type: :search_invalid, message: msg
   end
 
 end

@@ -13,6 +13,9 @@ defmodule LDAPEx.Mixfile do
      elixir: "~> 1.2",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
+     compilers: [:asn1] ++ Mix.compilers,
+     asn1_options: [:ber],
+     erlc_paths: ["lib/asn1"],
      deps: deps]
   end
 
@@ -42,6 +45,7 @@ defmodule LDAPEx.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [{:credo, "~> 0.3", only: [:dev, :test]},
+     {:asn1ex, git: "git://github.com/OvermindDL1/asn1ex.git", only: [:dev, :test]},
      {:dialyxir, "~> 0.3", only: [:dev]}]
   end
 end
