@@ -31,6 +31,10 @@ installed by:
        }
      ```
 
+See the [API Reference](https://hexdocs.pm/ldap_ex/api-reference.html) for
+usage.  For using the client see the
+[Client API Reference](https://hexdocs.pm/ldap_ex/LDAPEx.Client.html).
+
 ## Features
 
 Thus far this is good for reading from LDAP, it has no writing functionality as
