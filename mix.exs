@@ -27,7 +27,7 @@ defmodule LDAPEx.Mixfile do
     [ licenses: ["MIT"],
       name: :ldap_ex,
       maintainers: ["OvermindDL1"],
-      links: %{"Github" => "https://github.com/OvermindDL1/LDAPEx"} ]
+      links: %{"Github" => "https://github.com/OvermindDL1/ldap_ex"} ]
   end
 
   # Configuration for the OTP application
