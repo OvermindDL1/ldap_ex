@@ -7,7 +7,7 @@ defmodule LDAPEx.Mixfile do
 
   def project do
     [app: :ldap_ex,
-     version: "0.0.1",
+     version: "0.1.0",
      description: @description,
      package: package,
      elixir: "~> 1.2",
@@ -16,6 +16,10 @@ defmodule LDAPEx.Mixfile do
      compilers: [:asn1] ++ Mix.compilers,
      asn1_options: [:ber],
      erlc_paths: ["lib/asn1"],
+     docs: [
+       #logo: "path/to/logo.png",
+       extras: ["README.md"]
+       ],
      deps: deps]
   end
 
@@ -46,6 +50,9 @@ defmodule LDAPEx.Mixfile do
   defp deps do
     [{:credo, "~> 0.3", only: [:dev, :test]},
      {:asn1ex, git: "git://github.com/OvermindDL1/asn1ex.git", only: [:dev, :test]},
-     {:dialyxir, "~> 0.3", only: [:dev]}]
+     {:dialyxir, "~> 0.3", only: [:dev]},
+     {:earmark, "~> 0.2.1", only: [:dev]},
+     {:ex_doc, "~> 0.11.5", only: [:dev]}
+    ]
   end
 end

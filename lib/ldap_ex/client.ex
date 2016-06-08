@@ -29,11 +29,18 @@ defmodule LDAPEx.Client do
   ####
 
   @doc """
-  Call this to start the client, it will return {:ok, pid}.
+  Call this to start the client and link it to your process so it will be
+  cleaned when your process exits, it will return {:ok, pid}.  Any of the
+  default config options can (and should be if not specified in the config) be
+  specified here as a keyword list.
 
   ```elixir
 
   iex> {:ok, ldap} = LDAPEx.Client.start_link()
+  iex> is_pid(ldap)
+  true
+
+  iex> {:ok, ldap} = LDAPEx.Client.start_link(username: "", password: "")
   iex> is_pid(ldap)
   true
 
@@ -106,46 +113,46 @@ defmodule LDAPEx.Client do
     provided, then a default of `false` will be used.  Other option is `true`.
     If it is `true` then the attribute values will just be the empty list `[]`.
   * `:filter` -> A filter is a 2-tuple of one of the following:
-    * `{:and, [<AnotherFilter>]}` -> And takes a list of other filters and
-      requires them all.
-    * `{:or, [<AnotherFilter>]}` -> Or takes a list of other filters and
-      requires them all.
-    * `{:not, <AnotherFilter}` -> Not will invert another Filter.
-    * `{:equalityMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
-      Equality Match takes an attribute key string and an attribute value string
-      then filters on if the value matches the attribute value on the object.
-    * `{:substrings, {:SubstringFilter, "<AttributeKey", [<SubstringMatcher]}}` ->
-      Substring takes an Attribute Key string, and a list of
-      SubstringMaterchers, which are a 2-tuple of
-      `{:initial|:any|:final, "<String>"}`.
-    * `{:greaterOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
-      GreaterOrEqual takes an attribute key string and an attribute value string
-      then filters on if the value is greater or equal to the attribute value on
-      the object.
-    * `{:lessOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
-      LessOrEqual takes an attribute key string and an attribute value string
-      then filters on if the value is less or equal to the attribute value on
-      the object.
-    * {:present, "<AttributeKey>"} -> Present takes a single string and will
-      match to an object if it contains that Attribute Key at all, or filters it
-      out if it does not have that Attribute key.
-    * `{:approxMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
-      ApproxMatch takes an attribute key string and an attribute value string
-      then filters on if the value is approximately  to the attribute value on
-      the object.  By 'approximately' this means that the implementation is
-      entirely defined by and dependent on the server.  It might be phonetic, so
-      something like 'John' could match 'Jon', or it could be a LIKE type thing
-      so "Joh*" could match "John" or "Johnny" or whatever it is the server
-      wants to do.
-    * `{:extensibleMatch, {:MatchingRuleAssertion, matchingRule = :asn1_NOVALUE,
-      type = :asn1_NOVALUE, matchValue, dnAttributes = :asn1_DEFAULT}}` ->
-      The Extensible Match is the most complex, but also the most powerful
-      matcher that LDAP has to offer.  Please see the "Extensible Match Filters"
-      section on the above LDAP Filters link for details.  'matchingRule',
-      'type', and 'matchValue' are all strings, and 'dnAttributes' is a boolean.
-      'matchValue' is the only required field, the rest may be left at the
-      defaults that are listed above to have the server ignore those fields.
-      The atom `:asn1_DEFAULT` on `dnAttributes` is equal to `false`.
+      + `{:and, [<AnotherFilter>]}` -> And takes a list of other filters and
+        requires them all.
+      + `{:or, [<AnotherFilter>]}` -> Or takes a list of other filters and
+        requires them all.
+      + `{:not, <AnotherFilter}` -> Not will invert another Filter.
+      + `{:equalityMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+        Equality Match takes an attribute key string and an attribute value string
+        then filters on if the value matches the attribute value on the object.
+      + `{:substrings, {:SubstringFilter, "<AttributeKey", [<SubstringMatcher]}}` ->
+        Substring takes an Attribute Key string, and a list of
+        SubstringMaterchers, which are a 2-tuple of
+        `{:initial|:any|:final, "<String>"}`.
+      + `{:greaterOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+        GreaterOrEqual takes an attribute key string and an attribute value string
+        then filters on if the value is greater or equal to the attribute value on
+        the object.
+      + `{:lessOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+        LessOrEqual takes an attribute key string and an attribute value string
+        then filters on if the value is less or equal to the attribute value on
+        the object.
+      + {:present, "<AttributeKey>"} -> Present takes a single string and will
+        match to an object if it contains that Attribute Key at all, or filters it
+        out if it does not have that Attribute key.
+      + `{:approxMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+        ApproxMatch takes an attribute key string and an attribute value string
+        then filters on if the value is approximately  to the attribute value on
+        the object.  By 'approximately' this means that the implementation is
+        entirely defined by and dependent on the server.  It might be phonetic, so
+        something like 'John' could match 'Jon', or it could be a LIKE type thing
+        so "Joh*" could match "John" or "Johnny" or whatever it is the server
+        wants to do.
+      + `{:extensibleMatch, {:MatchingRuleAssertion, matchingRule = :asn1_NOVALUE,
+        type = :asn1_NOVALUE, matchValue, dnAttributes = :asn1_DEFAULT}}` ->
+        The Extensible Match is the most complex, but also the most powerful
+        matcher that LDAP has to offer.  Please see the "Extensible Match Filters"
+        section on the above LDAP Filters link for details.  'matchingRule',
+        'type', and 'matchValue' are all strings, and 'dnAttributes' is a boolean.
+        'matchValue' is the only required field, the rest may be left at the
+        defaults that are listed above to have the server ignore those fields.
+        The atom `:asn1_DEFAULT` on `dnAttributes` is equal to `false`.
   * `:attributes` -> A list of strings, default [], will return only the
     specified attributes, if empty it returns all.
 
@@ -201,7 +208,7 @@ defmodule LDAPEx.Client do
   attributes to return, otherwise it returns all.  This function ignores
   references and will only return a single full object result.  If more than one
   object matched then the dn was not precise enough and it will return an
-  `{:error, reason}` tuple.
+  `{:error, reason}` 2-tuple.
 
   ```elixir
 
@@ -406,6 +413,8 @@ defmodule LDAPEx.Client do
   #     error -> {:error, error}
   #   end
   # end
+  # Hmm, the below is a more complex matcher, but it is so much shorter and kind
+  # or more readable...
   defp check_reply(%{id: id} = state,
     {:ok, {:LDAPMessage, id,
       {op, {:LDAPResult, :success, _matchedDN, _errorMessage, _referral}}, _controls}=msg},

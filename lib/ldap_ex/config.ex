@@ -6,6 +6,15 @@ defmodule LDAPEx.Config do
 
   #require Logger
 
+  @defaults %{
+      server: :server_undefined,
+      port: 389,
+      ssl: false,
+      username: "",
+      password: "",
+      timeout: 5000
+    }
+
   @doc """
   Returns the environment default configuration map
 
@@ -19,11 +28,11 @@ defmodule LDAPEx.Config do
   ```
   """
   def get_config() do
-    Application.get_env(:ldap_ex, :defaults, %{})
+    Map.merge(@defaults, Application.get_env(:ldap_ex, :defaults, %{}))
   end
 
   @doc """
-  Returns the environment default configuration map with overdrrides specified
+  Returns the environment default configuration map with overrides specified
 
   ## Examples
   ```elixir
