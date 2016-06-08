@@ -1,4 +1,11 @@
 defmodule LDAPEx.ELDAPv3 do
+  @moduledoc """
+  This is the module to the Erlang generated LDAP interfaces from the LDAP ASN1
+  file.  The macros are records.  `LDAPEx.ELDAPv3.encode/2` and
+  `LDAPEx.ELDAPv3.decode/2` call into the erlang generated encode and decode
+  functions.  Everything is set up to take binaries instead of char_lists.
+  """
+
   require Record
   import Record, only: [defrecord: 2, extract_all: 1, is_record: 2]
 
