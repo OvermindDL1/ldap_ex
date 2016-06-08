@@ -49,7 +49,7 @@ defmodule LDAPEx.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [{:credo, "~> 0.3", only: [:dev, :test]},
-     {:asn1ex, git: "git://github.com/OvermindDL1/asn1ex.git", only: [:dev, :test]},
+     {:asn1ex, git: "git://github.com/OvermindDL1/asn1ex.git"},
      {:dialyxir, "~> 0.3", only: [:dev]},
      {:earmark, "~> 0.2.1", only: [:dev]},
      {:ex_doc, "~> 0.11.5", only: [:dev]}
