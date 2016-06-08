@@ -68,6 +68,9 @@ defmodule LDAPEx.Client do
   `LDAPEx.Client.search/3` to perform the search. The `:baseObject` and
   `:filter` options are the minimum necessary to be supplied.
 
+  Details on the LDAP Searching spec can be found at the
+  [LDAP Website - The Search Operation](https://www.ldap.com/the-ldap-search-operation)
+
   Details about LDAP Filters can be found at the
   [LDAP Website - Filters](https://www.ldap.com/ldap-filters).
 
