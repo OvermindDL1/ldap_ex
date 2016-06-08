@@ -24,7 +24,7 @@ installed by:
      config :ldap_ex, :defaults, %{
          server: System.get_env("LDAP_SERVER"),
          port: elem(Integer.parse(System.get_env("LDAP_PORT")), 0),
-         ssl: System.get_env("LDAP_SSL") == "true"
+         ssl: System.get_env("LDAP_SSL") == "true",
          username: System.get_env("LDAP_USERNAME"),
          password: System.get_env("LDAP_PASSWORD"),
          timeout: 5000
