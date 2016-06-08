@@ -26,7 +26,7 @@ defmodule LDAPEx.Mixfile do
   defp package do
     [ licenses: ["MIT"],
       name: :ldap_ex,
-      maintainers: ["Gabriel Robertson"],
+      maintainers: ["OvermindDL1"],
       links: %{"Github" => "https://github.com/OvermindDL1/LDAPEx"} ]
   end
 

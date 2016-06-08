@@ -22,6 +22,10 @@ defmodule LDAPEx.Client do
   end
 
 
+  ### This file is heavily based off of Erlangs eldap package:
+  # https://github.com/erlang/otp/blob/e1489c448b7486cdcfec6a89fea238d88e6ce2f3/lib/eldap/src/eldap.erl
+
+
   ####
   #
   # Public Interface
@@ -240,7 +244,7 @@ defmodule LDAPEx.Client do
   #   {:ok, state}
   # end
 
-  def init(%{server: server, port: port, ssl: ssl, username: username, password: password, timeout: timeout} = config) do
+  def init(%{ssl: ssl, username: username, password: password} = config) do
     {:ok, fd} = try_connect(config)
     state = %LDAPEx.Client{fd: fd, using_tls: ssl, config: config}
     {:ok, newState} = do_simple_bind(state, username, password, :asn1_NOVALUE)
@@ -260,8 +264,8 @@ defmodule LDAPEx.Client do
 
 
   def handle_cast(:close, state) do
-    do_unbind(state)
-    {:stop, :normal, %{state | fd: nil, using_tls: false, id: 0}}
+    {:ok, newState} = do_unbind(bump_id(state))
+    {:stop, :normal, newState}
   end
 
   ####
@@ -274,7 +278,7 @@ defmodule LDAPEx.Client do
   end
 
 
-  defp ldap_closed_p(%{fd: fd, using_tls: true} = state, emsg) do
+  defp ldap_closed_p(%{fd: fd, using_tls: true} = _state, emsg) do
     ## Check if the SSL socket seems to be alive or not
     try do
       :ssl.sockname(fd)
@@ -291,7 +295,7 @@ defmodule LDAPEx.Client do
     end
   end
 
-  defp ldap_closed_p(%{fd: fd, using_tls: false} = state, emsg) do
+  defp ldap_closed_p(%{fd: fd, using_tls: false} = _state, emsg) do
     ## Non-SSL socket
     try do
       :inet.port(fd)
@@ -321,14 +325,16 @@ defmodule LDAPEx.Client do
   defp do_unbind(state) do
     req = ""
     send_request(state, {:unbindRequest, req})
+    do_final_unbind(state)
+    {:ok, %{state | fd: nil, using_tls: false}}
   end
 
 
-  defp do_final_unbind(%{fd: fd, using_tls: false} = state) do
+  defp do_final_unbind(%{fd: fd, using_tls: false} = _state) do
     :gen_tcp.close(fd)
   end
 
-  defp do_final_unbind(%{fd: fd, using_tls: true} = state) do
+  defp do_final_unbind(%{fd: fd, using_tls: true} = _state) do
     :ssl.close(fd)
   end
 
@@ -395,6 +401,7 @@ defmodule LDAPEx.Client do
     end
   end
 
+  ### The check_reply function is not used just yet...
   # LDAPEx.ELDAPv3."LDAPMessage"(messageID: id, protocolOp: protocolOp)
   # -record('LDAPMessage',{messageID, protocolOp, controls = asn1_NOVALUE}).
   # {'LDAPMessage', messageID, protocolOp, controls = asn1_NOVALUE}
@@ -415,23 +422,21 @@ defmodule LDAPEx.Client do
   # end
   # Hmm, the below is a more complex matcher, but it is so much shorter and kind
   # or more readable...
-  defp check_reply(%{id: id} = state,
-    {:ok, {:LDAPMessage, id,
-      {op, {:LDAPResult, :success, _matchedDN, _errorMessage, _referral}}, _controls}=msg},
-      op) do
-        {:ok, state}
-  end
-
-  defp check_reply(%{id: id} = state,
-    {:ok, {:LDAPMessage, id,
-      {op, {:LDAPResult, :referral, _matchedDN, _errorMessage, referral}}, _controls}=msg},
-      op) do
-        {{:ok, {:referral, referral}}, state}
-  end
-
-  defp check_reply(_, error, _) do
-    {:error, error}
-  end
+  # defp check_reply(%{id: id} = state,
+  #   {:ok, {:LDAPMessage, id,
+  #     {op, {:LDAPResult, :success, _matchedDN, _errorMessage, _referral}}, _controls}=msg},
+  #     op) do
+  #       {:ok, state}
+  # end
+  # defp check_reply(%{id: id} = state,
+  #   {:ok, {:LDAPMessage, id,
+  #     {op, {:LDAPResult, :referral, _matchedDN, _errorMessage, referral}}, _controls}=msg},
+  #     op) do
+  #       {{:ok, {:referral, referral}}, state}
+  # end
+  # defp check_reply(_, error, _) do
+  #   {:error, error}
+  # end
 
 
   ### Bind requests
@@ -543,7 +548,7 @@ defmodule LDAPEx.Client do
 
   defp do_search(state, searchRecord, controls) do
     searchRecord = add_search_timeout(state, searchRecord)
-    res = try do
+    try do
       collect_search_responses(state, searchRecord, controls)
     rescue
       e in LDAPException -> {ldap_closed_p(state, e)}
@@ -560,7 +565,7 @@ defmodule LDAPEx.Client do
   end
 
 
-  defp add_search_timeout(%{config: %{timeout: timeout}} = state, searchRecord) do
+  defp add_search_timeout(%{config: %{timeout: timeout}} = _state, searchRecord) do
     LDAPEx.ELDAPv3."SearchRequest"(timeLimit: timeLimit) = searchRecord
     case timeLimit do
       :undefined -> LDAPEx.ELDAPv3."SearchRequest"(searchRecord, timeLimit: round(timeout/1000))
@@ -592,7 +597,7 @@ defmodule LDAPEx.Client do
 
   ### The returned answers cames in one packet per entry
   ### mixed with possible referals
-  defp collect_search_responses(%{fd: fd} = state, searchRecord, controls) do
+  defp collect_search_responses(state, searchRecord, controls) do
     send_request(state, {:searchRequest, searchRecord, controls})
     resp = recv_response(state)
     collect_search_responses(state, resp, [], [])
