@@ -68,6 +68,84 @@ defmodule LDAPEx.Client do
   `LDAPEx.Client.search/3` to perform the search. The `:baseObject` and
   `:filter` options are the minimum necessary to be supplied.
 
+  Details about LDAP Filters can be found at the
+  [LDAP Website - Filters](https://www.ldap.com/ldap-filters).
+
+  All possible options are:
+  * `:baseObject` -> Specifies the base DN for the search. Only entries at or
+    below this location in the server (based on the scope) will be considered
+    potential matches.
+  * `:scope` -> Specifies the range of entries relative to the base DN that may
+    be considered potential matches.  By default it is `:wholeSubtree`, which
+    can be slow for many operations.  Can also be set to the atoms
+    `:singleLevel` or `:baseObject`.
+  * `:derefAliases` -> Specifies the behavior that the server should exhibit if
+    any alias entries are encountered while processing the search.  This should
+    generally always be left at its default atom of `:derefAlways`, however its
+    other options are the atoms of `:derefFindingBaseObj`, `:derefInSearching`,
+    and `:neverDerefAliases`.
+  * `:sizeLimit` -> An integer that specifies the maximum number of entries that
+    should be returned from the search. A value of zero indicates that there
+    should not be any limit enforced. Note that the directory server may also be
+    configured with a server-side size limit which can also limit the number of
+    entries that may be returned to the client and in that case the smaller of
+    the client-side and server-side limits will be used. If no size limit is
+    provided, then a default of zero (unlimited) will be used.
+  * `:timeLimit` -> Specifies the maximum length of time in seconds that the
+    server should spend processing the search. A value of zero indicates that
+    there should not be any limit enforced. Note that the directory server may
+    also be configured with a server-side time limit which can also limit the
+    processing time, and in that case the smaller of the client-side and
+    server-side limits will be used. If no time limit is provided, then a
+    default of the initial connection timeout value will be used.
+  * `:typesOnly` -> Indicates whether matching entries should include only
+    attribute names, or both attribute names and values. If no value is
+    provided, then a default of `false` will be used.  Other option is `true`.
+    If it is `true` then the attribute values will just be the empty list `[]`.
+  * `:filter` -> A filter is a 2-tuple of one of the following:
+    * `{:and, [<AnotherFilter>]}` -> And takes a list of other filters and
+      requires them all.
+    * `{:or, [<AnotherFilter>]}` -> Or takes a list of other filters and
+      requires them all.
+    * `{:not, <AnotherFilter}` -> Not will invert another Filter.
+    * `{:equalityMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+      Equality Match takes an attribute key string and an attribute value string
+      then filters on if the value matches the attribute value on the object.
+    * `{:substrings, {:SubstringFilter, "<AttributeKey", [<SubstringMatcher]}}` ->
+      Substring takes an Attribute Key string, and a list of
+      SubstringMaterchers, which are a 2-tuple of
+      `{:initial|:any|:final, "<String>"}`.
+    * `{:greaterOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+      GreaterOrEqual takes an attribute key string and an attribute value string
+      then filters on if the value is greater or equal to the attribute value on
+      the object.
+    * `{:lessOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+      LessOrEqual takes an attribute key string and an attribute value string
+      then filters on if the value is less or equal to the attribute value on
+      the object.
+    * {:present, "<AttributeKey>"} -> Present takes a single string and will
+      match to an object if it contains that Attribute Key at all, or filters it
+      out if it does not have that Attribute key.
+    * `{:approxMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+      ApproxMatch takes an attribute key string and an attribute value string
+      then filters on if the value is approximately  to the attribute value on
+      the object.  By 'approximately' this means that the implementation is
+      entirely defined by and dependent on the server.  It might be phonetic, so
+      something like 'John' could match 'Jon', or it could be a LIKE type thing
+      so "Joh*" could match "John" or "Johnny" or whatever it is the server
+      wants to do.
+    * `{:extensibleMatch, {:MatchingRuleAssertion, matchingRule = :asn1_NOVALUE,
+      type = :asn1_NOVALUE, matchValue, dnAttributes = :asn1_DEFAULT}}` ->
+      The Extensible Match is the most complex, but also the most powerful
+      matcher that LDAP has to offer.  Please see the "Extensible Match Filters"
+      section on the above LDAP Filters link for details.  'matchingRule',
+      'type', and 'matchValue' are all strings, and 'dnAttributes' is a boolean.
+      'matchValue' is the only required field, the rest may be left at the
+      defaults that are listed above to have the server ignore those fields.
+      The atom `:asn1_DEFAULT` on `dnAttributes` is equal to `false`.
+  * `:attributes` -> A list of strings, default [], will return only the
+    specified attributes, if empty it returns all.
+
   ```elixir
 
   iex> LDAPEx.Client.setup_search(baseObject: "ou=People,o=example.com,o=cp", filter: {:present, "dn"} )
@@ -87,7 +165,7 @@ defmodule LDAPEx.Client do
       filter: :FILTER_INVALID,
       attributes: v_attributes([])
       )
-    req = parse_into_searchRequest(searchRequestArgs, default)
+    parse_into_searchRequest(searchRequestArgs, default)
   end
 
 
@@ -103,7 +181,7 @@ defmodule LDAPEx.Client do
   iex> [r] = res # Assuming only one record is returned
   iex> r.objectName === System.get_env("TEST_LDAP_DN")
   true
-  iex> map_size(r.attributes) >= 4
+  iex> map_size(r.attributes) >= 1
   true
   iex> LDAPEx.Client.close(ldap)
   :ok
@@ -112,6 +190,31 @@ defmodule LDAPEx.Client do
   """
   def search(ldap, searchRecord, controls \\ :asn1_NOVALUE) when is_pid(ldap) and is_record(searchRecord, :SearchRequest) do
     GenServer.call(ldap, {:search, searchRecord, controls})
+  end
+
+
+  @doc """
+  This returns an object by a full object name, optionally can specify specific
+  attributes to return, otherwise it returns all.  This function ignores
+  references and will only return a single full object result.  If more than one
+  object matched then the dn was not precise enough and it will return an
+  `{:error, reason}` tuple.
+
+  ```elixir
+
+  iex> {:ok, ldap} = LDAPEx.Client.start_link()
+  iex> {:ok, obj} = LDAPEx.Client.get_object(ldap, System.get_env("TEST_LDAP_DN"))
+  iex> obj.objectName === System.get_env("TEST_LDAP_DN")
+  true
+  iex> map_size(obj.attributes) >= 1
+  true
+  iex> LDAPEx.Client.close(ldap)
+  :ok
+
+  ```
+  """
+  def get_object(ldap, dn, attributes \\ []) do
+    GenServer.call(ldap, {:get_object, dn, attributes})
   end
 
 
@@ -137,6 +240,11 @@ defmodule LDAPEx.Client do
 
   def handle_call({:search, searchRecord, controls}, _from, state) do
     {res, newState} = do_search(bump_id(state), searchRecord, controls)
+    {:reply, res, newState}
+  end
+
+  def handle_call({:get_object, dn, attributes}, _from, state) do
+    {res, newState} = do_get_object(bump_id(state), dn, attributes)
     {:reply, res, newState}
   end
 
@@ -348,8 +456,8 @@ defmodule LDAPEx.Client do
     {:error, error}
   end
 
-  ### Search setup
 
+  ### Search setup
 
   defp parse_into_searchRequest([], searchRequest) do
     searchRequest
@@ -418,6 +526,8 @@ defmodule LDAPEx.Client do
   defp v_filter({:extensibleMatch, s}) when is_record(s, :MatchingRuleAssertion) ,do: {:extensibleMatch, s}
   defp v_filter(filter)                ,do: raise LDAPException, type: :invalid_filter, message: "unknown filter: #{filter}"
 
+
+  ### Search
 
   defp do_search(state, searchRecord, controls) do
     searchRecord = add_search_timeout(state, searchRecord)
@@ -501,6 +611,25 @@ defmodule LDAPEx.Client do
 
   defp collect_search_responses(_state, msg, _acc, _ref) do
     raise LDAPException, type: :search_invalid, message: msg
+  end
+
+
+  ## Get Object
+
+  defp do_get_object(state, dn, attributes) do
+    searchRecord = LDAPEx.Client.setup_search(
+      baseObject: dn,
+      filter: {:present, "objectClass"},
+      attributes: attributes
+      )
+    case do_search(state, searchRecord, :asn1_NOVALUE) do
+      {{:ok, {[r], _refs}}, newState}                -> {{:ok, r}, newState}
+      {{:ok, {[], _refs}}, newState}                 -> {{:error, :no_object_found}, newState}
+      {{:ok, {[_r0, _r1 | _rest], _refs}}, newState} -> {{:error, :more_than_one_object_found}, newState}
+      {{:ok, _unknown}, newState}                    -> {{:error, :non_object}, newState}
+      {{:error, err}, newState}                      -> {{:error, err}, newState}
+      {unknown, newState}                            -> {{:error, {:unknown_error, unknown}}, newState}
+    end
   end
 
 end
