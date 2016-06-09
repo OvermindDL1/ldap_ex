@@ -13,7 +13,7 @@ installed by:
 
      ```elixir
      def deps do
-     [{:ldap_ex, "~> 0.2.1"}]
+     [{:ldap_ex, "~> 0.2.2"}]
      end
      ```
 
