@@ -13,6 +13,7 @@ defmodule LDAPEx.Mixfile do
      elixir: "~> 1.2",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
+     erlc_paths: ["lib/asn1"],
      docs: [
        #logo: "path/to/logo.png",
        extras: ["README.md"]

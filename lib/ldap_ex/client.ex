@@ -258,11 +258,13 @@ defmodule LDAPEx.Client do
   end
 
 
+
   ####
   #
   # GenServer Callbacks
   #
   ####
+
   # Don't call this one with login_at_connect: false yet, no way to log in yet if not now...
   # def init(%{server: server, port: port, ssl: ssl, timeout: timeout, login_at_connect: false} = config) do
   #   {:ok, connection} = try_connect(config)
@@ -275,10 +277,13 @@ defmodule LDAPEx.Client do
     state = %LDAPEx.Client{fd: fd, using_tls: ssl, config: config}
     case do_simple_bind(state, username, password, :asn1_NOVALUE) do
       {:ok, newState} -> {:ok, put_in(newState.config[:password], nil)} # Sanitize password
-      {{:ok, {:referral, referral}}, _newState} -> {:stop, {:referral, referral}}
-      {{:error, err}, _newState} -> {:stop, err}
+      {{:ok, {:referral, referral}}, _newState} ->
+        do_unbind(bump_id(state))
+        {:stop, {:referral, referral}}
+      {{:error, err}, _newState} ->
+        do_unbind(bump_id(state))
+        {:stop, err}
     end
-
   end
 
 
