@@ -7,7 +7,7 @@ defmodule LDAPEx.Mixfile do
 
   def project do
     [app: :ldap_ex,
-     version: "0.1.1",
+     version: "0.2.0",
      description: @description,
      package: package,
      elixir: "~> 1.2",
