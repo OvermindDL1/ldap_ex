@@ -6,20 +6,22 @@ defmodule LDAPEx.Mixfile do
   """
 
   def project do
-    [app: :ldap_ex,
-     version: "0.2.2",
-     description: @description,
-     package: package,
-     elixir: "~> 1.2",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     erlc_paths: ["lib/asn1"],
-     docs: [
-       #logo: "path/to/logo.png",
-       extras: ["README.md": [path: "getting_started", title: "Getting Started"]],
-       main: "getting_started"
-       ],
-     deps: deps]
+    [ app: :ldap_ex,
+      version: "0.2.2",
+      description: @description,
+      package: package,
+      elixir: "~> 1.2",
+      build_embedded: Mix.env == :prod,
+      start_permanent: Mix.env == :prod,
+      erlc_paths: ["lib/asn1"],
+      source_url: "https://github.com/OvermindDL1/permission_ex",
+      #homepage_url: "http://YOUR_PROJECT_HOMEPAGE",
+      docs: [
+        #logo: "path/to/logo.png",
+        extras: ["README.md": [path: "getting_started", title: "Getting Started"]],
+        main: "getting_started"
+      ],
+      deps: deps]
   end
 
   defp package do
