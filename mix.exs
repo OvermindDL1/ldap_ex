@@ -16,7 +16,8 @@ defmodule LDAPEx.Mixfile do
      erlc_paths: ["lib/asn1"],
      docs: [
        #logo: "path/to/logo.png",
-       extras: ["README.md"]
+       extras: ["README.md": [path: "getting_started", title: "Getting Started"]],
+       main: "getting_started"
        ],
      deps: deps]
   end
