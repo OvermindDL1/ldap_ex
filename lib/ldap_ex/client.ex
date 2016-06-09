@@ -48,11 +48,37 @@ defmodule LDAPEx.Client do
   iex> is_pid(ldap)
   true
 
+  iex> LDAPEx.Client.start_link(username: "INVALID", password: "")
+  {:error, :invalidDNSyntax}
+
+  iex> LDAPEx.Client.start_link(username: System.get_env("TEST_LDAP_DN"), password: "INCORRECT")
+  {:error, :invalidCredentials}
+
   ```
   """
   def start_link(overrides \\ []) do
     config = LDAPEx.Config.get_config(overrides)
-    GenServer.start_link(__MODULE__, config)
+    # old_trap = Process.flag(:trap_exit, true)
+    # ret = try do
+    #   GenServer.start_link(__MODULE__, config)
+    # rescue
+    #   res -> {:RES, res}
+    # catch
+    #   :exit, res -> {:exit, res}
+    #   err -> {:ERR, err}
+    # end
+    # Process.flag(:trap_exit, old_trap)
+    # ret
+    try do
+      GenServer.start(__MODULE__, config)
+    catch
+      :exit, reason -> {:error, {:exit, reason}}
+    else
+      {:ok, pid} when is_pid(pid) ->
+        Process.link(pid)
+        {:ok, pid}
+      ret -> ret
+    end
   end
 
 
@@ -247,8 +273,12 @@ defmodule LDAPEx.Client do
   def init(%{ssl: ssl, username: username, password: password} = config) do
     {:ok, fd} = try_connect(config)
     state = %LDAPEx.Client{fd: fd, using_tls: ssl, config: config}
-    {:ok, newState} = do_simple_bind(state, username, password, :asn1_NOVALUE)
-    {:ok, put_in(newState.config[:password], nil)} # Sanitize password
+    case do_simple_bind(state, username, password, :asn1_NOVALUE) do
+      {:ok, newState} -> {:ok, put_in(newState.config[:password], nil)} # Sanitize password
+      {{:ok, {:referral, referral}}, _newState} -> {:stop, {:referral, referral}}
+      {{:error, err}, _newState} -> {:stop, err}
+    end
+
   end
 
 
@@ -474,6 +504,7 @@ defmodule LDAPEx.Client do
         case resultCode do
           :success -> {:ok, state}
           :referral -> {{:ok, {:referral, referral}}, state}
+          err -> {{:error, err}, state}
         end
   end
 
