@@ -14,7 +14,7 @@ defmodule LDAPEx.Mixfile do
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       erlc_paths: ["lib/asn1"],
-      source_url: "https://github.com/OvermindDL1/permission_ex",
+      source_url: "https://github.com/OvermindDL1/ldap_ex",
       #homepage_url: "http://YOUR_PROJECT_HOMEPAGE",
       docs: [
         #logo: "path/to/logo.png",
