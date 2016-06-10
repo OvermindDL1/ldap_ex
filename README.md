@@ -15,7 +15,7 @@ installed by:
      def deps do
      [{:ldap_ex, "~> 0.2.2"}]
      end
-     ```
+```
 
   2. If you want defaults (highly recommended) for any unspecified value, add
      something like this to your configuration:
@@ -29,7 +29,7 @@ installed by:
          password: System.get_env("LDAP_PASSWORD"),
          timeout: 5000
        }
-     ```
+```
 
 See the [API Reference](https://hexdocs.pm/ldap_ex/api-reference.html) for
 usage.  For using the client see the
