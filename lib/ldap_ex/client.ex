@@ -44,6 +44,7 @@ defmodule LDAPEx.Client do
   iex> is_pid(ldap)
   true
 
+  # Anon login
   iex> {:ok, ldap} = LDAPEx.Client.start_link(username: "", password: "")
   iex> is_pid(ldap)
   true
