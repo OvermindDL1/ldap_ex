@@ -229,8 +229,8 @@ defmodule LDAPEx.Client do
 
   ```
   """
-  def search(ldap, searchRecord, controls \\ :asn1_NOVALUE) when is_pid(ldap) and is_record(searchRecord, :SearchRequest) do
-    GenServer.call(ldap, {:search, searchRecord, controls})
+  def search(ldap, searchRecord, controls \\ :asn1_NOVALUE, genserver_timeout \\ 120000) when is_pid(ldap) and is_record(searchRecord, :SearchRequest) do
+    GenServer.call(ldap, {:search, searchRecord, controls}, genserver_timeout)
   end
 
 
