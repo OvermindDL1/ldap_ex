@@ -596,7 +596,7 @@ defmodule LDAPEx.Client do
     try do
       collect_search_responses(state, searchRecord, controls)
     rescue
-      e in LDAPException -> {ldap_closed_p(state, e)}
+      e in LDAPException -> {ldap_closed_p(state, e), state}
     catch
       {:error, emsg}               -> {ldap_closed_p(state, emsg), state}
       {:EXIT, err}                 -> {ldap_closed_p(state, err), state}
