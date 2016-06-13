@@ -229,7 +229,7 @@ defmodule LDAPEx.Client do
 
   ```
   """
-  def search(ldap, searchRecord, controls \\ :asn1_NOVALUE, genserver_timeout \\ 120000) when is_pid(ldap) and is_record(searchRecord, :SearchRequest) do
+  def search(ldap, searchRecord, genserver_timeout \\ 120000, controls \\ :asn1_NOVALUE) when is_pid(ldap) and is_record(searchRecord, :SearchRequest) do
     GenServer.call(ldap, {:search, searchRecord, controls}, genserver_timeout)
   end
 
@@ -254,8 +254,8 @@ defmodule LDAPEx.Client do
 
   ```
   """
-  def get_object(ldap, dn, attributes \\ []) do
-    GenServer.call(ldap, {:get_object, dn, attributes})
+  def get_object(ldap, dn, attributes \\ [], genserver_timeout \\ 120000) do
+    GenServer.call(ldap, {:get_object, dn, attributes}, genserver_timeout)
   end
 
 
