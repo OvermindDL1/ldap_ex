@@ -149,10 +149,10 @@ defmodule LDAPEx.Client do
       + `{:or, [<AnotherFilter>]}` -> Or takes a list of other filters and
         requires them all.
       + `{:not, <AnotherFilter}` -> Not will invert another Filter.
-      + `{:equalityMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+      + `{:equalityMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue>"}}` ->
         Equality Match takes an attribute key string and an attribute value string
         then filters on if the value matches the attribute value on the object.
-      + `{:substrings, {:SubstringFilter, "<AttributeKey", [<SubstringMatcher]}}` ->
+      + `{:substrings, {:SubstringFilter, "<AttributeKey>", [<SubstringMatcher>]}}` ->
         Substring takes an Attribute Key string, and a list of
         SubstringMaterchers, which are a 2-tuple of
         `{:initial|:any|:final, "<String>"}`.
@@ -160,14 +160,14 @@ defmodule LDAPEx.Client do
         GreaterOrEqual takes an attribute key string and an attribute value string
         then filters on if the value is greater or equal to the attribute value on
         the object.
-      + `{:lessOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+      + `{:lessOrEqual, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue>"}}` ->
         LessOrEqual takes an attribute key string and an attribute value string
         then filters on if the value is less or equal to the attribute value on
         the object.
       + {:present, "<AttributeKey>"} -> Present takes a single string and will
         match to an object if it contains that Attribute Key at all, or filters it
         out if it does not have that Attribute key.
-      + `{:approxMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue"}}` ->
+      + `{:approxMatch, {:AttributeValueAssertion, "<AttributeKey>", "<AttributeValue>"}}` ->
         ApproxMatch takes an attribute key string and an attribute value string
         then filters on if the value is approximately  to the attribute value on
         the object.  By 'approximately' this means that the implementation is
