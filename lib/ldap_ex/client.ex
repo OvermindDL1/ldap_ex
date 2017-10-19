@@ -335,7 +335,7 @@ defmodule LDAPEx.Client do
       {:error, _res} ->
         :ssl.close(fd)
         {:error, :ldap_closed}
-      _ -> {:error, :ldap_closed}
+      #_ -> {:error, :ldap_closed}
     end
   end
 
@@ -356,7 +356,7 @@ defmodule LDAPEx.Client do
 
   defp try_connect(%{server: server, port: port, ssl: false, timeout: timeout}) do
     tcpOpts = [:binary, packet: :asn1, active: false]
-    :gen_tcp.connect(to_char_list(server), port, tcpOpts, timeout)
+    :gen_tcp.connect(to_charlist(server), port, tcpOpts, timeout)
   end
 
   defp try_connect(%{server: server, port: port, ssl: true, timeout: timeout}) do
@@ -605,7 +605,7 @@ defmodule LDAPEx.Client do
       {:ok, res, ref, newState}    -> {{:ok, polish(res, ref)}, newState}
       {{:ok, val}, newState}       -> {{:ok, val}, newState}
       {{:error, reason}, newState} -> {{:error, reason}, newState}
-      otherwise                    -> {ldap_closed_p(state, otherwise), state}
+      #otherwise                    -> {ldap_closed_p(state, otherwise), state}
     end
   end
 
@@ -690,7 +690,7 @@ defmodule LDAPEx.Client do
       {{:ok, {[_r0, _r1 | _rest], _refs}}, newState} -> {{:error, :more_than_one_object_found}, newState}
       {{:ok, _unknown}, newState}                    -> {{:error, :non_object}, newState}
       {{:error, err}, newState}                      -> {{:error, err}, newState}
-      {unknown, newState}                            -> {{:error, {:unknown_error, unknown}}, newState}
+      #{unknown, newState}                            -> {{:error, {:unknown_error, unknown}}, newState}
     end
   end
 

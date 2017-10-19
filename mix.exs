@@ -9,8 +9,8 @@ defmodule LDAPEx.Mixfile do
     [ app: :ldap_ex,
       version: "0.2.4",
       description: @description,
-      package: package,
-      elixir: "~> 1.2",
+      package: package(),
+      elixir: "~> 1.4",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       erlc_paths: ["lib/asn1"],
@@ -21,7 +21,7 @@ defmodule LDAPEx.Mixfile do
         extras: ["README.md": [path: "getting_started", title: "Getting Started"]],
         main: "getting_started"
       ],
-      deps: deps]
+      deps: deps()]
   end
 
   defp package do
@@ -35,7 +35,7 @@ defmodule LDAPEx.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger],
+    [applications: [:logger, :asn1, :ssl],
      mod: {LDAPEx, []}]
   end
 
@@ -49,10 +49,10 @@ defmodule LDAPEx.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:credo, "~> 0.3", only: [:dev]},
-     {:dialyxir, "~> 0.3", only: [:dev]},
-     {:earmark, "~> 0.2.1", only: [:dev]},
-     {:ex_doc, "~> 0.11.5", only: [:dev]}
+    [{:credo, "~> 0.8", only: [:dev]},
+     {:dialyxir, "~> 0.5", only: [:dev]},
+     {:earmark, "~> 1.2", only: [:dev]},
+     {:ex_doc, "~> 0.18", only: [:dev]}
     ]
   end
 end
