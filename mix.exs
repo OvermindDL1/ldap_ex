@@ -18,8 +18,8 @@ defmodule LDAPEx.Mixfile do
       #homepage_url: "http://YOUR_PROJECT_HOMEPAGE",
       docs: [
         #logo: "path/to/logo.png",
-        extras: ["README.md": [path: "getting_started", title: "Getting Started"]],
-        main: "getting_started"
+        extras: ["README.md": [path: "readme", title: "Getting Started"]],
+        main: "readme"
       ],
       deps: deps()]
   end
