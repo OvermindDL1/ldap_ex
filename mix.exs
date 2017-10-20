@@ -35,7 +35,7 @@ defmodule LDAPEx.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :asn1, :ssl],
+    [applications: [:logger, :asn1, :ssl, :connection],
      mod: {LDAPEx, []}]
   end
 
@@ -52,7 +52,8 @@ defmodule LDAPEx.Mixfile do
     [{:credo, "~> 0.8", only: [:dev]},
      {:dialyxir, "~> 0.5", only: [:dev]},
      {:earmark, "~> 1.2", only: [:dev]},
-     {:ex_doc, "~> 0.18", only: [:dev]}
+     {:ex_doc, "~> 0.18", only: [:dev]},
+     {:connection, "~> 1.0"}
     ]
   end
 end
