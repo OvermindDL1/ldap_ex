@@ -7,7 +7,7 @@ defmodule LDAPEx.ELDAPv3 do
   """
 
   require Record
-  import Record, only: [defrecord: 2, extract_all: 1, is_record: 2]
+  import Record, only: [defrecord: 2, extract_all: 1]
 
 
   for rec <- extract_all(from: "lib/asn1/ELDAPv3a.hrl") do
