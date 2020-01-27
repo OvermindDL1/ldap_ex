@@ -362,7 +362,7 @@ defmodule LDAPEx.Client do
   defp try_connect(%{server: server, port: port, ssl: true, timeout: timeout}) do
     tcpOpts = [:binary, packet: :asn1, active: false]
     tlsOpts = []
-    :ssl.connect(server, port, tcpOpts ++ tlsOpts, timeout)
+    :ssl.connect(to_charlist(server), port, tcpOpts ++ tlsOpts, timeout)
   end
 
 
